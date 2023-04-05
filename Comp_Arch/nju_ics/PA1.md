@@ -244,9 +244,7 @@ API参照网站：[这个页面](https://ysyx.oscc.cc/docs/ics-pa/nemu-isa-api.h
 
   需要包含<memory/paddr.h>
 
-  ![image-20230403121555642](PA1.assets\image-20230403121555642.png)
-
-* 
+  ![image-20230403121555642](PA1.assets/image-20230403121555642.png)
 
 ## 表达式求值
 
