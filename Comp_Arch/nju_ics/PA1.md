@@ -1,3 +1,7 @@
+[TOC]
+
+
+
 # PA1 Simplest Machine
 
 ## Before the travel
@@ -26,13 +30,13 @@
 
   运行后会弹出一个新窗口, 在新窗口中按下按键, 你将会看到程序在终端输出相应的按键信息, 包括按键名, 键盘码, 以及按键状态. 
 
-  ![image-20230327145815603](C:\Users\1\AppData\Roaming\Typora\typora-user-images\image-20230327145815603.png)
+  ![image-20230327145815603](PA1.assets/image-20230327145815603.png)
 
 * 画面
 
   玩一下超级玛丽，ROM[链接](http://jyywiki.cn/ICS/2021/labs/PA1)，根据fceux中的README.md运行
 
-  ![image-20230327145037853](C:\Users\1\AppData\Roaming\Typora\typora-user-images\image-20230327145037853.png)
+  ![image-20230327145037853](PA1.assets/image-20230327145037853.png)
 
 ### 使用ccache
 
@@ -181,7 +185,7 @@ ctags -R *
 
 API参照网站：[这个页面](https://ysyx.oscc.cc/docs/ics-pa/nemu-isa-api.html)
 
-
+主程序逻辑如下：
 
 1. am_init_monitor or init_monitor:
 
@@ -197,7 +201,7 @@ API参照网站：[这个页面](https://ysyx.oscc.cc/docs/ics-pa/nemu-isa-api.h
 
    6. **init_isa**
 
-      ![image-20230327172115592](C:\Users\1\AppData\Roaming\Typora\typora-user-images\image-20230327172115592.png)
+      ![image-20230327172115592](PA1.assets/image-20230327172115592.png)
 
       1. 将客户程序读入内存
 
@@ -222,7 +226,7 @@ API参照网站：[这个页面](https://ysyx.oscc.cc/docs/ics-pa/nemu-isa-api.h
 
 当键入q直接退出时，会出现Error，但如果输入c，再输入q则不会出现错误。
 
-![image-20230328100601702](C:\Users\1\AppData\Roaming\Typora\typora-user-images\image-20230328100601702.png)
+![image-20230328100601702](PA1.assets/image-20230328100601702.png)
 
 1. make run -n查看可运行文件名字
 
@@ -230,9 +234,149 @@ API参照网站：[这个页面](https://ysyx.oscc.cc/docs/ics-pa/nemu-isa-api.h
 
 3. 通过调试，发现如果运行c命令，会运行默认的指令，由于默认指令有ebreak，ebreak被定义为set_nemu_state，将nemu_state.state设置为NEMU_END（2），从而在运行q时，执行is_exit_status_bad中good为1，返回值为0，并不会报错
 
-   ![image-20230328101011140](C:\Users\1\AppData\Roaming\Typora\typora-user-images\image-20230328101011140.png)
+   ![image-20230328101011140](PA1.assets/image-20230328101011140.png)
 
    而直接运行q，由于并没有设置系统状态为NEMU_QUIT，所以good为0，返回值为1，导致Makefile文件中产生错误。
 
 ## 基础设施
+
+* 打印内存，通过printf和运行程序验证正确性（a little weak）
+
+  需要包含<memory/paddr.h>
+
+  ![image-20230403121555642](PA1.assets\image-20230403121555642.png)
+
+* 
+
+## 表达式求值
+
+> 在TRM中, 寄存器(包括PC)和内存中的值唯一地确定了计算机的一个状态
+
+因此打印寄存器和扫描内存这两个功能一定可以帮助我们调试。
+
+这里面有些用到了编译原理的内容
+
+1. 词法分析
+
+   识别token，本次实验中选择了一条简单的方法：通过正则表达式来识别。
+
+2. 递归求值
+
+   递归求值中的起始位置应当为数组下标，否则前面得到的tokens变量将毫无意义。
+
+   找主token时需要考虑(1+2)*(3+4)的情况，考虑有括号的运算符不能是主token，思路在layer为0的层级找token。
+
+### 测试代码
+
+测试程序通常会遇到以下两种情况，导致无法算出表达式结果。
+
+1. 错误：编译错误，出现多余空格
+2. 警告：除0警告，仍可以运行。
+
+于是在测试我们的expr函数时，遇到这两种情况，将全局变量eval_success设置为false，进行判断。
+
+* 除0
+
+  除0确实不好解决，如果不进行求值，很难找到1/(1-1)这种。
+
+  生成input文件时，发现有些除0错误会在编译期间被gcc优化掉，导致生成正常结果，但自己的计算机会报错，从而导致测试样例不通过的场景。具体代码如下：
+
+  ```c
+  #include <stdio.h>
+  int main() { 
+    int result = 3/10*(7/0);
+    printf("%d\n", result);
+    return 0; 
+  }
+  ```
+
+  后面通过生成数字时剔除了0来先通过测试。
+
+* 无符号
+
+  使用uint64_t，需要加入<stdint.h>头文件，否则会报错误。同样，针对64位代码，应采用uint64_t的结果，需要注意printf、scanf、atoi以及运算变量不能设置无符号整数等的设置。
+
+* 正负数和不同进制
+
+  不同进制和十进制通过正则一起识别，最后求值时从字符串转整数通过strtol传入不同参数获取。
+
+* 解引用
+
+  想不清楚解引用前一个token是什么类型可以和乘号区分开，因此简单实现。
+
+## 监视点
+
+* cpu_exec
+  * execute
+    * exec_once
+    * trace_and_difftest：其中扫描所有的监视点
+
+增加宏定义后需要重新`make menuconfig`写入config文件
+
+## 调试工具与原理
+
+首先，机器永远都是对的。
+
+* Fault: 实现错误的代码，例如`if (p = NULL)`
+* Error: 程序执行时不符合预期的状态，例如p被错误地赋值为`NULL`
+* Failure: 能直接观测到的错误，例如程序触发了段错误。
+
+调试其实就是从观测到的failure一步一步回溯寻找fault的过程, 找到了fault之后, 我们就很快知道应该如何修改错误的代码了. 但从上面的例子也可以看出, 调试之所以不容易, 恰恰是因为:
+
+- fault不一定马上触发error
+- 触发了error也不一定马上转变成可观测的failure
+- error会像滚雪球一般越积越多, 当我们观测到failure的时候, 其实已经距离fault非常遥远了
+
+因此我们需要尽可能早的实现Fault->Error->Failure的转换
+
+* Fault->error
+
+  全面测试代码
+
+* Error->Failure
+
+  * -Wall, -Werror
+  * assert，把运行时刻的error直接转变成failure
+  * printf
+  * GDB
+
+根据上面的分析, 我们就可以总结出一些调试的建议:
+
+- 总是使用`-Wall`和`-Werror`
+- 尽可能多地在代码中插入`assert()`
+- 调试时先启用sanitizer
+- `assert()`无法捕捉到error时, 通过`printf()`输出可疑的变量, 期望能观测到error
+- `printf()`不易观测error时, 通过GDB理解程序的精确行为
+
+
+
+统计.c和.h的行数
+
+```shell
+find . -name "*.[ch]" | xargs wc -l
+```
+
+统计.c和.h中除了空行的行数
+
+```shell
+find . -name "*.[ch]" | xargs cat | grep -v ^$ | wc -l
+```
+
+## 扩展阅读-debugger中断点的实现
+
+[这篇文章](https://eli.thegreenplace.net/2011/01/27/how-debuggers-work-part-2-breakpoints)
+
+### Setting breakpoints in the debugger with int 3
+
+To set a breakpoint at some target address in the traced process, the debugger does the following:
+
+1. Remember the data stored at the target address
+2. Replace the first byte at the target address with the int 3 instruction
+
+Then, when the debugger asks the OS to run the process (with `PTRACE_CONT` as we saw in the previous article), the process will run and eventually hit upon the `int 3`, where it will stop and the OS will send it a signal. This is where the debugger comes in again, receiving a signal that its child (or traced process) was stopped. It can then:
+
+1. Replace the int 3 instruction at the target address with the original instruction
+2. Roll the instruction pointer of the traced process back by one. This is needed because the instruction pointer now points *after* the `int 3`, having already executed it.
+3. Allow the user to interact with the process in some way, since the process is still halted at the desired target address. This is the part where your debugger lets you peek at variable values, the call stack and so on.
+4. When the user wants to keep running, the debugger will take care of placing the breakpoint back (since it was removed in step 1) at the target address, unless the user asked to cancel the breakpoint.
 
