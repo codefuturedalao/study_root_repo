@@ -54,7 +54,7 @@ export PATH=/usr/lib/ccache:$PATH
 
 > ISA的本质就是类似这样的规范. 所以ISA的存在形式既不是硬件电路, 也不是软件代码, 而是一本规范手册.
 
-选择riscv64，通过make menuconfig进行更改。
+选择riscv32，通过make menuconfig进行更改。
 
 ## 开天辟地的篇章
 
