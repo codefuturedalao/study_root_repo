@@ -165,6 +165,10 @@ In this case:
 - `$<` evaluates to `library.cpp`
 - `$^` evaluates to `library.cpp main.cpp`
 
+关于Makefile中的:=和=
+
+:=表示非迭代赋值，=表示迭代赋值。
+
 ### ctags
 
 ```shell
