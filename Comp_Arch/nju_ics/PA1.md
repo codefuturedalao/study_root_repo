@@ -135,6 +135,24 @@ NEMU中的配置系统位于`nemu/tools/kconfig`, 它来源于GNU/Linux项目中
 
 #### 项目构建和Makefiles
 
+**Overriding Variables**
+
+An argument that contains ‘=’ specifies the value of a variable: ‘v=x’ sets the value of the variable v to x. If you specify a value in this way, all ordinary assignments of the same variable in the makefile are ignored; we say they have been *overridden* by the command line argument.
+
+The most common way to use this facility is to pass extra flags to compilers. For example, in a properly written makefile, the variable `CFLAGS` is included in each recipe that runs the C compiler, so a file foo.c would be compiled something like this:
+
+```
+cc -c $(CFLAGS) foo.c
+```
+
+Thus, whatever value you set for `CFLAGS` affects each compilation that occurs. The makefile probably specifies the usual value for `CFLAGS`, like this:
+
+```
+CFLAGS=-g
+```
+
+Each time you run `make`, you can override this value if you wish. For example, if you say ‘make CFLAGS='-g -O'’, each C compilation will be done with ‘cc -c -g -O’. (This also illustrates how you can use quoting in the shell to enclose spaces and other special characters in the value of a variable when you override it.)
+
 关于Makefile中$@和$<
 
 ```
@@ -146,6 +164,10 @@ In this case:
 - `$@` evaluates to `all`
 - `$<` evaluates to `library.cpp`
 - `$^` evaluates to `library.cpp main.cpp`
+
+关于Makefile中的:=和=
+
+:=表示非迭代赋值，=表示迭代赋值。
 
 ### ctags
 
